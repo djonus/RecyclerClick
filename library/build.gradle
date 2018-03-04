@@ -3,23 +3,24 @@ apply plugin: 'kotlin-android'
 
 android {
     compileSdkVersion 27
+
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 27
-        versionCode 1
-        versionName "0.1.0"
     }
-    buildTypes {
-        release {
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
+    }
+
+    libraryVariants.all {
+        it.generateBuildConfig.enabled = false
     }
 }
 
 dependencies {
-    implementation 'com.android.support:recyclerview-v7:27.1.0'
-    implementation 'com.android.support:support-annotations:27.1.0'
-    implementation 'io.reactivex.rxjava2:rxjava:2.1.7'
+    implementation "com.android.support:recyclerview-v7:$support_version"
+    implementation "com.android.support:support-annotations:$support_version"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'io.reactivex.rxjava2:rxjava:2.1.7'
 }
