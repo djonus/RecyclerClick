@@ -7,17 +7,39 @@ import io.reactivex.Observable
 import io.reactivex.ObservableEmitter
 import io.reactivex.Single
 
-fun RecyclerView.clicks(@IdRes viewId: Int): Observable<ItemClick> {
-    lateinit var clicksToEmitter: RecyclerView.OnChildAttachStateChangeListener
+private const val TAG_EMITTER = 132645284642.toInt()
 
-    return Observable.create<ItemClick> {
-        clicksToEmitter = ChildClicksToEmitterAttachListener(viewId, it)
-        this.addOnChildAttachStateChangeListener(clicksToEmitter)
+private val clickListener = View.OnClickListener { v ->
+    val click = ItemClick(v, v.positionInRecycler())
+    v.getEmitters().forEach {
+        if (!it.isDisposed) it.onNext(click)
+    }
+}
+
+fun RecyclerView.clicks(@IdRes viewId: Int): Observable<ItemClick> {
+
+    lateinit var childAttachedListener: RecyclerView.OnChildAttachStateChangeListener
+
+    return Observable.create<ItemClick> { emitter ->
+
+        childAttachedListener = ChildAttachedListener(viewId) {
+            it.addEmitter(emitter)
+            it.setOnClickListener(clickListener)
+        }
+
+        for (i in 0 until childCount) {
+            getChildAt(i).withId(viewId)?.apply {
+                addEmitter(emitter)
+                setOnClickListener(clickListener)
+            }
+        }
+
+        this.addOnChildAttachStateChangeListener(childAttachedListener)
     }
             .takeUntil(this.onDetach().toObservable())
-            .doOnTerminate({
-                this.removeOnChildAttachStateChangeListener(clicksToEmitter)
-            })
+            .doOnTerminate {
+                this.removeOnChildAttachStateChangeListener(childAttachedListener)
+            }
 }
 
 fun View.positionInRecycler(): Int = if (parent is RecyclerView) {
@@ -39,41 +61,22 @@ private fun View.onDetach(): Single<Any> = Single.create<Any> {
     })
 }
 
-private class ChildClicksToEmitterAttachListener(@IdRes val viewId: Int, val emitter: ObservableEmitter<ItemClick>) : RecyclerView.OnChildAttachStateChangeListener {
+private fun View.withId(@IdRes viewId: Int): View? = if (id == viewId) this else findViewById(viewId)
 
-    private val clickListener = View.OnClickListener { v ->
-        if (v != null && !emitter.isDisposed) {
-            val click = ItemClick(v, v.positionInRecycler())
-            v.getEmitters().forEach {
-                it.onNext(click)
-            }
-        }
-    }
+private fun View.addEmitter(emitter: ObservableEmitter<ItemClick>) {
+    setTag(TAG_EMITTER, getEmitters().plus(emitter))
+}
+
+private fun View.getEmitters() = getTag(TAG_EMITTER) as? Set<ObservableEmitter<ItemClick>> ?: emptySet()
+
+private class ChildAttachedListener(@IdRes val viewId: Int, val callback: (View) -> Any) : RecyclerView.OnChildAttachStateChangeListener {
 
     override fun onChildViewAttachedToWindow(view: View) {
-        if (view.id == viewId) {
-            view.addEmitter(emitter)
-            view.setOnClickListener(clickListener)
-        } else {
-            view.findViewById<View>(viewId)?.apply {
-                addEmitter(emitter)
-                setOnClickListener(clickListener)
-            }
-        }
+        view.withId(viewId)?.let { callback(it) }
     }
 
     override fun onChildViewDetachedFromWindow(view: View) {
-        view.setOnClickListener(null)
-    }
-
-    private fun View.addEmitter(emitter: ObservableEmitter<ItemClick>) {
-        setTag(TAG_EMITTER, getEmitters().plus(emitter))
-    }
-
-    private fun View.getEmitters() = getTag(TAG_EMITTER) as? Set<ObservableEmitter<ItemClick>> ?: emptySet()
-
-    companion object {
-        const val TAG_EMITTER = 132645284642.toInt()
+        //Nothing to do
     }
 }
 
