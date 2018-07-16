@@ -12,22 +12,23 @@ private val defaultClickListener = View.OnClickListener {
 }
 
 fun RecyclerView.clicks(@IdRes viewId: Int, listener: (ItemClick) -> Unit) {
+    setClickListeners(viewId, listener)
+    addOnScrollListener(object : RecyclerView.OnScrollListener() {
+        override fun onScrollStateChanged(recyclerView: RecyclerView?, newState: Int) {
+            if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                recyclerView?.setClickListeners(viewId, listener)
+            }
+        }
+    })
+}
 
-    lateinit var childAttachedListener: RecyclerView.OnChildAttachStateChangeListener
-
-    childAttachedListener = ChildAttachedListener(viewId) {
-        it.addClickListener(listener)
-        it.setOnClickListener(defaultClickListener)
-    }
-
+private fun RecyclerView.setClickListeners(@IdRes viewId: Int, listener: (ItemClick) -> Unit) {
     for (i in 0 until childCount) {
         getChildAt(i).withId(viewId)?.apply {
             addClickListener(listener)
             setOnClickListener(defaultClickListener)
         }
     }
-
-    this.addOnChildAttachStateChangeListener(childAttachedListener)
 }
 
 private fun View.positionInRecycler(): Int = if (parent is RecyclerView) {
@@ -43,15 +44,4 @@ private fun View.addClickListener(emitter: (ItemClick) -> Unit) {
 private fun View.getClickListeners() = getTag(TAG_EMITTER) as? Set<(ItemClick) ->Unit> ?: emptySet()
 
 private fun View.withId(@IdRes viewId: Int): View? = if (id == viewId) this else findViewById(viewId)
-
-private class ChildAttachedListener(@IdRes val viewId: Int, val callback: (View) -> Unit) : RecyclerView.OnChildAttachStateChangeListener {
-
-    override fun onChildViewAttachedToWindow(view: View) {
-        view.withId(viewId)?.let { callback(it) }
-    }
-
-    override fun onChildViewDetachedFromWindow(view: View) {
-        //Nothing to do
-    }
-}
 
