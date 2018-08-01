@@ -10,22 +10,17 @@ fun RecyclerView.clicks(@IdRes viewId: Int, listener: (ItemClick) -> Unit) {
         listener(click)
     }
 
-    setClickListeners(viewId, onClickListener)
-    addOnScrollListener(object : RecyclerView.OnScrollListener() {
-        override fun onScrollStateChanged(recyclerView: RecyclerView?, newState: Int) {
-            if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                recyclerView?.setClickListeners(viewId, onClickListener)
+    addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
+        override fun onChildViewDetachedFromWindow(view: View) {
+            //Nothing to do
+        }
+
+        override fun onChildViewAttachedToWindow(view: View) {
+            view.withId(viewId)?.apply {
+                setOnClickListener(onClickListener)
             }
         }
     })
-}
-
-private fun RecyclerView.setClickListeners(@IdRes viewId: Int, listener: View.OnClickListener) {
-    for (i in 0 until childCount) {
-        getChildAt(i).withId(viewId)?.apply {
-            setOnClickListener(listener)
-        }
-    }
 }
 
 private fun View.positionInRecycler(): Int = if (parent is RecyclerView) {
